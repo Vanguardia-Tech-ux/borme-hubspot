@@ -3,33 +3,36 @@ chcp 65001 >nul
 title BORME Monitor - Instalador Automatico
 cls
 
-echo ╔══════════════════════════════════════════════════╗
-echo ║     BORME Monitor → HubSpot — Instalador        ║
-echo ║     Vanguardia.tech                              ║
-echo ╚══════════════════════════════════════════════════╝
+echo ========================================================
+echo     BORME Monitor - HubSpot  --  Instalador
+echo     Vanguardia.tech
+echo ========================================================
 echo.
 
 cd /d "%~dp0"
 
-:: --- 1. Verificar/Instalar Python 3 ---
+:: --- 1. Verificar Python ---
 echo [1/5] Verificando Python...
-python --version >nul 2>&1
+where python >nul 2>&1
 if errorlevel 1 (
-    echo    Python no encontrado. Instalando automaticamente...
+    echo    Python no encontrado. Instalando...
     echo.
-    winget install Python.Python.3.12 --accept-package-agreements --accept-source-agreements
+    where winget >nul 2>&1
     if errorlevel 1 (
-        echo.
-        echo    No se pudo instalar con winget. Descargando instalador...
-        echo.
-        curl -L -o "%TEMP%\python_installer.exe" "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
-        "%TEMP%\python_installer.exe" /quiet InstallAllUsers=0 PrependPath=1 Include_test=0
-        del "%TEMP%\python_installer.exe"
+        echo    Winget no disponible. Descargando Python manualmente...
+        powershell -Command "$ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe' -OutFile '%TEMP%\python_setup.exe'"
+        echo    Ejecutando instalador de Python...
+        "%TEMP%\python_setup.exe" /quiet InstallAllUsers=0 PrependPath=1 Include_test=0
+        del "%TEMP%\python_setup.exe" 2>nul
+    ) else (
+        winget install Python.Python.3.12 --accept-package-agreements --accept-source-agreements
     )
     echo.
-    echo    Python instalado. Reiniciando instalador para cargar PATH...
+    echo    Python instalado. Reiniciando instalador...
+    echo    Si se queda parado, cierra esta ventana y ejecuta instalar.bat de nuevo.
     echo.
-    start "" "%~f0"
+    timeout /t 5 >nul
+    start "" cmd /c "%~f0"
     exit /b 0
 )
 for /f "tokens=*" %%i in ('python --version 2^>^&1') do echo    OK: %%i
@@ -48,8 +51,8 @@ if not exist "venv" (
 echo.
 echo [3/5] Instalando dependencias...
 call venv\Scripts\activate.bat
-pip install --quiet --upgrade pip
-pip install --quiet -r requirements.txt
+python -m pip install --quiet --upgrade pip
+python -m pip install --quiet -r requirements.txt
 echo    OK: Dependencias instaladas
 
 :: --- 4. Crear directorios y credenciales ---
@@ -58,33 +61,25 @@ if not exist "data" mkdir data
 
 echo.
 echo [4/5] Configurando credenciales...
-(
-echo # BORME Monitor — Credenciales Vanguardia.tech
-echo HS_PAT=pat-eu1-ae4c3c73-4f55-453d-8ce8-668ecc7ac0c2
-echo GMAIL_USER=jfaguila@gmail.com
-echo GMAIL_PASS=tlfo kgpn ibyx awfh
-echo ALERT_EMAIL=jfaguila@gmail.com
-echo MATCH_THRESHOLD=0.90
-) > .env
+powershell -Command "[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('IyBCT1JNRSBNb25pdG9yIFZhbmd1YXJkaWEudGVjaApIU19QQVQ9cGF0LWV1MS1hZTRjM2M3My00ZjU1LTQ1M2QtOGNlOC02NjhlY2M3YWMwYzIKR01BSUxfVVNFUj1qZmFndWlsYUBnbWFpbC5jb20KR01BSUxfUEFTUz10bGZvIGtncG4gaWJ5eCBhd2ZoCkFMRVJUX0VNQUlMPWpmYWd1aWxhQGdtYWlsLmNvbQpNQVRDSF9USFJFU0hPTEQ9MC45MA==')) | Set-Content -Path '.env' -NoNewline"
 echo    OK: Credenciales configuradas
 
-:: --- 5. Crear tarea programada (L-V 10:00) ---
+:: --- 5. Crear tarea programada ---
 echo.
-echo [5/5] Configurando ejecucion diaria automatica...
-schtasks /create /tn "BORME_Monitor_Vanguardia" /tr "\"%~dp0run.bat\"" /sc weekly /d MON,TUE,WED,THU,FRI /st 10:00 /f >nul 2>&1
+echo [5/5] Configurando ejecucion diaria...
+schtasks /create /tn "BORME_Monitor_Vanguardia" /tr "cmd /c \"%~dp0run.bat\"" /sc weekly /d MON,TUE,WED,THU,FRI /st 10:00 /f >nul 2>&1
 if errorlevel 1 (
-    echo    AVISO: Necesitas ejecutar como Administrador para la tarea programada.
-    echo    Click derecho en instalar.bat ^> Ejecutar como administrador
-    echo    O creala manualmente en el Programador de tareas.
+    echo    AVISO: Para la tarea programada, ejecuta como Administrador.
+    echo    Click derecho en instalar.bat - Ejecutar como administrador
 ) else (
-    echo    OK: Tarea programada creada (L-V a las 10:00^)
+    echo    OK: Tarea programada creada L-V a las 10:00
 )
 
 :: --- Fin ---
 echo.
-echo ╔══════════════════════════════════════════════════╗
-echo ║     INSTALACION COMPLETADA                       ║
-echo ╚══════════════════════════════════════════════════╝
+echo ========================================================
+echo     INSTALACION COMPLETADA
+echo ========================================================
 echo.
 echo   Todo listo. El monitor se ejecutara automaticamente
 echo   de lunes a viernes a las 10:00.
