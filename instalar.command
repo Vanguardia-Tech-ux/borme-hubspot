@@ -106,16 +106,16 @@ echo ""
 read -p "   ¿Quieres activar la ejecución diaria automática? (s/N): " CRON_SETUP
 
 if [[ "$CRON_SETUP" == "s" || "$CRON_SETUP" == "S" ]]; then
-    CRON_LINE="0 10 * * 1-5 $DIR/run.sh >> $DIR/logs/cron.log 2>&1"
+    CRON_LINE="0 9 * * 1-5 $DIR/run.sh >> $DIR/logs/cron.log 2>&1"
 
     # Evitar duplicados
     (crontab -l 2>/dev/null | grep -v "borme-hubspot/run.sh"; echo "$CRON_LINE") | crontab -
-    echo "   ✅ Cron configurado: L-V a las 10:00"
+    echo "   ✅ Cron configurado: L-V a las 09:00"
     echo "   Línea: $CRON_LINE"
 else
     echo "   Puedes configurarlo manualmente después:"
     echo "   crontab -e"
-    echo "   0 10 * * 1-5 $DIR/run.sh"
+    echo "   0 9 * * 1-5 $DIR/run.sh"
 fi
 
 # --- Fin ---
