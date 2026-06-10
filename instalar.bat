@@ -11,44 +11,33 @@ echo.
 
 cd /d "%~dp0"
 
-:: --- 0. Desactivar alias falsos de Python (Microsoft Store) ---
+:: --- 0. Desactivar alias falsos de Python ---
 echo [0/5] Desactivando alias de Python de Microsoft Store...
-powershell -Command "if (Test-Path '%LOCALAPPDATA%\Microsoft\WindowsApps\python.exe') { Remove-Item '%LOCALAPPDATA%\Microsoft\WindowsApps\python.exe' -Force -ErrorAction SilentlyContinue }; if (Test-Path '%LOCALAPPDATA%\Microsoft\WindowsApps\python3.exe') { Remove-Item '%LOCALAPPDATA%\Microsoft\WindowsApps\python3.exe' -Force -ErrorAction SilentlyContinue }"
+del "%LOCALAPPDATA%\Microsoft\WindowsApps\python.exe" >nul 2>&1
+del "%LOCALAPPDATA%\Microsoft\WindowsApps\python3.exe" >nul 2>&1
 echo    OK: Alias desactivados
 
-:: --- 1. Verificar/Instalar Python ---
+:: --- 1. Verificar Python ---
 echo.
 echo [1/5] Verificando Python...
+python --version >nul 2>&1
+if errorlevel 1 goto instalar_python
+echo    OK: Python encontrado
+goto python_ok
 
-:: Buscar Python real (no el alias de Microsoft Store)
-set PYTHON_FOUND=0
-where python >nul 2>&1
-if not errorlevel 1 (
-    python --version >nul 2>&1
-    if not errorlevel 1 set PYTHON_FOUND=1
-)
+:instalar_python
+echo    Python no encontrado. Instalando...
+echo    Descargando Python 3.12 (puede tardar unos minutos)...
+powershell -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe' -OutFile '%TEMP%\python_setup.exe'"
+echo    Ejecutando instalador de Python...
+start /wait "" "%TEMP%\python_setup.exe" /quiet InstallAllUsers=0 PrependPath=1 Include_test=0
+del "%TEMP%\python_setup.exe" >nul 2>&1
+echo    Python instalado. Reiniciando instalador...
+timeout /t 3 >nul
+start "" cmd /c "%~f0"
+exit /b 0
 
-if "%PYTHON_FOUND%"=="0" (
-    echo    Python no encontrado. Instalando...
-    echo.
-    where winget >nul 2>&1
-    if errorlevel 1 (
-        echo    Descargando Python 3.12...
-        powershell -Command "$ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe' -OutFile '%TEMP%\python_setup.exe'"
-        echo    Instalando Python (puede tardar un minuto)...
-        start /wait "" "%TEMP%\python_setup.exe" /quiet InstallAllUsers=0 PrependPath=1 Include_test=0
-        del "%TEMP%\python_setup.exe" 2>nul
-    ) else (
-        winget install Python.Python.3.12 --accept-package-agreements --accept-source-agreements
-    )
-    echo.
-    echo    Python instalado. Reiniciando instalador para cargar PATH...
-    echo.
-    timeout /t 3 >nul
-    start "" cmd /c "%~f0"
-    exit /b 0
-)
-for /f "tokens=*" %%i in ('python --version 2^>^&1') do echo    OK: %%i
+:python_ok
 
 :: --- 2. Crear entorno virtual ---
 echo.
@@ -83,7 +72,6 @@ echo [5/5] Configurando ejecucion diaria...
 schtasks /create /tn "BORME_Monitor_Vanguardia" /tr "cmd /c \"%~dp0run.bat\"" /sc weekly /d MON,TUE,WED,THU,FRI /st 09:00 /f >nul 2>&1
 if errorlevel 1 (
     echo    AVISO: Para la tarea programada, ejecuta como Administrador.
-    echo    Click derecho en instalar.bat - Ejecutar como administrador
 ) else (
     echo    OK: Tarea programada creada L-V a las 09:00
 )
@@ -94,7 +82,7 @@ echo ========================================================
 echo     INSTALACION COMPLETADA
 echo ========================================================
 echo.
-echo   Todo listo. El monitor se ejecutara automaticamente
+echo   Todo listo. Se ejecutara automaticamente
 echo   de lunes a viernes a las 09:00.
 echo.
 echo   Uso manual:
